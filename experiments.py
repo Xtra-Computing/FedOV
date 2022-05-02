@@ -15,6 +15,7 @@ from math import *
 import random
 import copy
 from PIL import Image
+from cutpaste import *
 
 import datetime
 #from torch.utils.tensorboard import SummaryWriter
@@ -496,6 +497,13 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                                         max_iters=5,
                                         device=device)
 
+    cp = CutPasteUnion()
+
+    aug_final = transforms.RandomChoice( [
+        transforms.Lambda(lambda img: aug_crop(img)),
+        #transforms.Lambda(lambda img: cp(img)) # delete this comment if you want to add cutpaste augmentation
+    ])
+
     for epoch in range(epochs):
         epoch_loss_collector = []
         for tmp in train_dataloader:
@@ -556,7 +564,7 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                 '''
                 x_gen11 = copy.deepcopy(x.cpu().numpy())
                 for i in range(x_gen11.shape[0]):
-                    x_gen11[i] = aug_crop(torch.Tensor(x_gen11[i]))
+                    x_gen11[i] = aug_final(torch.Tensor(x_gen11[i]))
                 x_gen11 = torch.Tensor(x_gen11).to(device)
                 
                 optimizer.zero_grad()
@@ -613,8 +621,8 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                 else:
                     co = rnd[batch_idx]
                 '''
-                loss = criterion(out, target) + criterion(out_second, y_gen) + criterion(out_gen11, y_gen) #+ criterion(out_gen9, y_gen) + criterion(out_gen10, y_gen) #criterion(out_gen, y_gen) + criterion(out_gen2, y_gen) + criterion(out_gen3, y_gen) + criterion(out_gen4, y_gen) + criterion(out_gen5, y_gen) + criterion(out_gen6, y_gen) + criterion(out_gen7, y_gen) + criterion(out_gen8, y_gen) #+ criterion(out_gen12, y_gen)
-
+                loss = criterion(out, target) + criterion(out_gen11, y_gen) + criterion(out_second, y_gen) #+ criterion(out_gen9, y_gen) + criterion(out_gen10, y_gen) #criterion(out_gen, y_gen) + criterion(out_gen2, y_gen) + criterion(out_gen3, y_gen) + criterion(out_gen4, y_gen) + criterion(out_gen5, y_gen) + criterion(out_gen6, y_gen) + criterion(out_gen7, y_gen) + criterion(out_gen8, y_gen) #+ criterion(out_gen12, y_gen)
+                
                 if np.min(y_mask) == 10:                    
                     y_mask = torch.LongTensor(y_mask).to(device)
 
@@ -622,6 +630,7 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                     mixed_embeddings = beta * mid + (1-beta) * mid[ind]
                     mixed_out = net.later_layers(mixed_embeddings) 
                     loss += criterion(mixed_out, y_mask) * 0.01
+                
                 adv_data = attack.perturb(x_gen11, y_gen)
 
                 out_adv, _ = net(adv_data)
@@ -816,7 +825,3 @@ if __name__ == '__main__':
                 test_acc = compute_accuracy_vote(model_list, threshold_list, test_dl_global, accepted_vote, normalize = False, factor=factor,device=device)
                 logger.info("Max {} vote: test acc = {}".format(accepted_vote, test_acc))
             
-        
-        
-
-   
