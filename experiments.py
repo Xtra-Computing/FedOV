@@ -644,6 +644,7 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                 epoch_loss_collector.append(loss.item())
 
         epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
+        #auc = compute_auc_outlier_detection(net_id, net, test_dataloader, device=device) #can be used to perform traditional outlier detection experiments, calculate ROC-AUC under noniid-#label1 partition
         logger.info('Epoch: %d Loss: %f' % (epoch, epoch_loss))
 
         #train_acc = compute_accuracy(net, train_dataloader, device=device)
