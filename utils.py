@@ -7,7 +7,7 @@ import torch.utils.data as data
 from torch.autograd import Variable
 import torch.nn.functional as F
 import random
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_auc_score
 from torch.utils.data import DataLoader
 from sklearn.manifold import TSNE
 
@@ -815,4 +815,101 @@ def noise_sample(choice, n_dis_c, dis_c_dim, n_con_c, n_z, batch_size, device):
 
     return noise, idx
 
+def compute_auc_outlier_detection(inlier, model, dataloader, get_confusion_matrix=False, calc=False, device="cpu", add=0):
+
+    was_training = False
+    if model.training:
+        model.eval()
+        was_training = True
+
+    true_labels_list, pred_labels_list = np.array([]), np.array([])
+
+    if type(dataloader) == type([1]):
+        pass
+    else:
+        dataloader = [dataloader]
+
+    correct, total = 0, 0
+    outlier_prob, num = 0.0, 0
+    max_prob = 0
+    avg_max, avg_num = 0.0, 0
+    max_tmp = 0
+    flag = False
+    ftrs = None
+    lbs = None
+    
+
+    with torch.no_grad():
+        for tmp in dataloader:
+            for batch_idx, (x, target) in enumerate(tmp):
+                x, target = x.to(device), target.to(device,dtype=torch.int64)
+                out, mid = model(x)
+
+                prob = torch.softmax(out, dim=1)
+
+                target_revised = np.where(target.cpu().numpy()==inlier, 0, 1)
+                
+                if not flag:
+                    ftrs = prob[:,10].cpu().numpy() # record outlier prob instead
+                    lbs = target_revised
+                    flag = True
+                else:
+                    ftrs = np.concatenate((ftrs,prob[:,10].cpu().numpy()))
+                    lbs = np.concatenate((lbs,target_revised))
+
+                
+                if calc:
+                    if torch.max(prob[:,-1]) > max_prob:
+                        max_prob = torch.max(prob[:,-1])
+
+                    if torch.sum(torch.log(prob[:,-1])) > -10000:
+                        outlier_prob += torch.sum(torch.log(prob[:,-1]))
+                        num += x.shape[0]
+
+                    if torch.max(prob[:,-1]) > max_tmp:
+                        max_tmp = torch.max(prob[:,-1])
+
+                    if batch_idx % 4 == 0:
+                        avg_max += torch.log(max_tmp)
+                        avg_num += 1
+                        max_tmp = 0
+                        
+                _, pred_label = torch.max(out.data, 1)
+
+                #if batch_idx == 0:
+                #    logger.info(out.data)
+                #    logger.info(target)
+
+                total += x.data.size()[0]
+                correct += (pred_label == target.data).sum().item()
+
+                if device == "cpu":
+                    pred_labels_list = np.append(pred_labels_list, pred_label.numpy())
+                    true_labels_list = np.append(true_labels_list, target.data.numpy())
+                else:
+                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                    true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+    ''''
+    if not calc:        
+        ftrs = np.concatenate((ftrs,add))
+        lbs = np.concatenate((lbs,np.ones(add.shape[0],dtype=np.int32)*10))
+
+        tsne = TSNE()
+        result = tsne.fit_transform(ftrs)
+        np.save('ft.npy',result)
+        np.save('lb.npy',lbs)
+    '''
+    #if get_confusion_matrix:
+    #    conf_matrix = confusion_matrix(true_labels_list, pred_labels_list)
+
+    if was_training:
+        model.train()
+
+    #if get_confusion_matrix:
+    #    return correct/float(total), conf_matrix
+    #logger.info(lbs)
+    #logger.info(ftrs)
+    auc = roc_auc_score(lbs, ftrs)
+
+    return auc
 
