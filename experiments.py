@@ -808,8 +808,9 @@ if __name__ == '__main__':
         logger.info("Initializing nets")
         nets, local_model_meta_data, layer_type = init_nets(args.net_config, args.dropout_p, args.n_parties, args)
         arr = np.arange(args.n_parties)
+        threshold_list=[]
         threshold_list = local_train_net_vote(nets, arr, args, net_dataidx_map, test_dl = test_dl_global, device=device)
-        logger.info(threshold_list)
+        #logger.info(threshold_list)
 
         model_list = [net for net_id, net in nets.items()]
         
@@ -823,6 +824,13 @@ if __name__ == '__main__':
             
             logger.info("Not Normalize")
             for accepted_vote in range(1, 11):
-                test_acc = compute_accuracy_vote(model_list, threshold_list, test_dl_global, accepted_vote, normalize = False, factor=factor,device=device)
+                test_acc, half, pred_labels_list = compute_accuracy_vote(model_list, threshold_list, test_dl_global, accepted_vote, normalize = False, factor=factor,device=device)
                 logger.info("Max {} vote: test acc = {}".format(accepted_vote, test_acc))
+            #logger.info(half)
+            #logger.info(pred_labels_list.shape)
+            #logger.info(pred_labels_list)
+
+        stu_nets = init_nets(args.net_config, args.dropout_p, 1, args)
+        stu_model = stu_nets[0][0]
+        distill(stu_model, pred_labels_list, test_dl_global, half, args=args, device=device)
             
