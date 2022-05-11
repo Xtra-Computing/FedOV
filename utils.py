@@ -913,3 +913,63 @@ def compute_auc_outlier_detection(inlier, model, dataloader, get_confusion_matri
 
     return auc
 
+def distill(model, first_half_labels, dataloader, half, args, device="cpu"):
+    model.to(device)
+
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.reg)
+    criterion = nn.CrossEntropyLoss().to(device)
+
+    for epoch in range(100):
+        epoch_loss_collector = []
+
+        for batch_idx, (x, target) in enumerate(dataloader):
+            if batch_idx >= half:
+                break
+            bs = target.shape[0]
+            target = torch.Tensor(first_half_labels[bs*batch_idx:bs*(batch_idx+1)])
+            x, target = x.to(device), target.to(device)
+            
+            optimizer.zero_grad()
+            x.requires_grad = True
+            target.requires_grad = False
+            target = target.long()
+
+            out, mid = model(x) 
+
+            loss = criterion(out, target) 
+            
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss_collector.append(loss.item())
+
+        epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
+
+        logger.info('Epoch: %d Loss: %f' % (epoch, epoch_loss))
+
+
+    true_labels_list, pred_labels_list = np.array([]), np.array([])
+
+    correct, total = 0, 0
+    with torch.no_grad():
+        for batch_idx, (x, target) in enumerate(dataloader):
+            if batch_idx < half:
+                continue
+            x, target = x.to(device), target.to(device,dtype=torch.int64)
+            out, mid = model(x)
+                
+            prob = torch.softmax(out, dim=1)
+                    
+            _, pred_label = torch.max(out.data, 1)
+
+            total += x.data.size()[0]
+            correct += (pred_label == target.data).sum().item()
+
+            if device == "cpu":
+                pred_labels_list = np.append(pred_labels_list, pred_label.numpy())
+                true_labels_list = np.append(true_labels_list, target.data.numpy())
+            else:
+                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+
+    logger.info(correct/float(total))
