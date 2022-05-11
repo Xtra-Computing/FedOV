@@ -534,9 +534,9 @@ def compute_accuracy_vote(model_list, threshold_list, dataloader, accepted_vote,
                 else:
                     pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                     true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+            half = int(batch_idx / 2)
 
-
-    return correct/float(total)
+    return correct/float(total), half, pred_labels_list
 
 def compute_accuracy(model, dataloader, get_confusion_matrix=False, calc=False, device="cpu", add=0):
 
