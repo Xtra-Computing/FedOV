@@ -1,5 +1,7 @@
 # FedOV
 
+This is source code for paper One-Shot Federated Learning by Open-Set Voting. An example running script is in `run.sh`.
+
 Some repos we refer to
 
 Adversarial attacks: directly use https://github.com/utkuozbulak/pytorch-cnn-adversarial-attacks
