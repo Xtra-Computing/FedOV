@@ -4,6 +4,8 @@ This is source code for paper One-Shot Federated Learning by Open-Set Voting. An
 
 Some repos we refer to
 
+General framework: https://github.com/Xtra-Computing/NIID-Bench
+
 Adversarial attacks: directly use https://github.com/utkuozbulak/pytorch-cnn-adversarial-attacks
 
 Cutpaste: use an unofficial reproduction from https://github.com/Runinho/pytorch-cutpaste. The authors of Cutpaste do not make code public.
