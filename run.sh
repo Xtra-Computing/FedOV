@@ -12,5 +12,4 @@ python experiments.py --model=simple-cnn \
 	--device='cuda:0'\
 	--datadir='./data/' \
 	--logdir='./logs/' \
-	--noise=0\
 	--init_seed=0
