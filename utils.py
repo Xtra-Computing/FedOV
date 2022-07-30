@@ -7,12 +7,12 @@ import torch.utils.data as data
 from torch.autograd import Variable
 import torch.nn.functional as F
 import random
-from sklearn.metrics import confusion_matrix, roc_auc_score
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
-from sklearn.manifold import TSNE
+import copy
 
 from model import *
-from datasets import MNIST_truncated, CIFAR10_truncated, SVHN_custom, FashionMNIST_truncated, CustomTensorDataset, CelebA_custom, FEMNIST, Generated, genData
+from datasets import MNIST_truncated, CIFAR10_truncated, CIFAR100_truncated, ImageFolder_custom, SVHN_custom, FashionMNIST_truncated, CustomTensorDataset, CelebA_custom, FEMNIST, Generated, genData
 from math import sqrt
 
 import torch.nn as nn
@@ -26,11 +26,6 @@ from models.mnist_model import Generator, Discriminator, DHead, QHead
 from config import params
 import sklearn.datasets as sk
 from sklearn.datasets import load_svmlight_file
-
-def norm(x):
-    norm = torch.norm(x, p=2, dim=1)
-    x = x / (norm.expand(1, -1).t() + .0001)
-    return x
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -143,6 +138,31 @@ def load_femnist_data(datadir):
 
     return (X_train, y_train, u_train, X_test, y_test, u_test)
 
+def load_cifar100_data(datadir):
+    transform = transforms.Compose([transforms.ToTensor()])
+
+    cifar100_train_ds = CIFAR100_truncated(datadir, train=True, download=True, transform=transform)
+    cifar100_test_ds = CIFAR100_truncated(datadir, train=False, download=True, transform=transform)
+
+    X_train, y_train = cifar100_train_ds.data, cifar100_train_ds.target
+    X_test, y_test = cifar100_test_ds.data, cifar100_test_ds.target
+
+    # y_train = y_train.numpy()
+    # y_test = y_test.numpy()
+
+    return (X_train, y_train, X_test, y_test)
+
+
+def load_tinyimagenet_data(datadir):
+    transform = transforms.Compose([transforms.ToTensor()])
+    xray_train_ds = ImageFolder_custom(datadir+'./train/', transform=transform)
+    xray_test_ds = ImageFolder_custom(datadir+'./val/', transform=transform)
+
+    X_train, y_train = np.array([s[0] for s in xray_train_ds.samples]), np.array([int(s[1]) for s in xray_train_ds.samples])
+    X_test, y_test = np.array([s[0] for s in xray_test_ds.samples]), np.array([int(s[1]) for s in xray_test_ds.samples])
+
+    return (X_train, y_train, X_test, y_test)
+
 def record_net_data_stats(y_train, net_dataidx_map, logdir):
 
     net_cls_counts = {}
@@ -172,6 +192,10 @@ def partition_data(dataset, datadir, logdir, partition, n_parties, beta=0.4):
         X_train, y_train, X_test, y_test = load_celeba_data(datadir)
     elif dataset == 'femnist':
         X_train, y_train, u_train, X_test, y_test, u_test = load_femnist_data(datadir)
+    elif dataset == 'cifar100':
+        X_train, y_train, X_test, y_test = load_cifar100_data(datadir)
+    elif dataset == 'tinyimagenet':
+        X_train, y_train, X_test, y_test = load_tinyimagenet_data(datadir)
     elif dataset == 'generated':
         X_train, y_train = [], []
         for loc in range(4):
@@ -227,7 +251,7 @@ def partition_data(dataset, datadir, logdir, partition, n_parties, beta=0.4):
     #    np.save("data/generated/y_test.npy",y_test)
 
     elif dataset in ('rcv1', 'SUSY', 'covtype'):
-        X_train, y_train = load_svmlight_file("../../../data/{}".format(dataset))
+        X_train, y_train = load_svmlight_file(datadir+dataset)
         X_train = X_train.todense()
         num_train = int(X_train.shape[0] * 0.75)
         if dataset == 'covtype':
@@ -248,8 +272,8 @@ def partition_data(dataset, datadir, logdir, partition, n_parties, beta=0.4):
         np.save("data/generated/y_test.npy",y_test)
 
     elif dataset in ('a9a'):
-        X_train, y_train = load_svmlight_file("../../../data/{}".format(dataset))
-        X_test, y_test = load_svmlight_file("../../../data/{}.t".format(dataset))
+        X_train, y_train = load_svmlight_file(datadir+"a9a")
+        X_test, y_test = load_svmlight_file(datadir+"a9a.t")
         X_train = X_train.todense()
         X_test = X_test.todense()
         X_test = np.c_[X_test, np.zeros((len(y_test), X_train.shape[1] - np.size(X_test[0, :])))]
@@ -283,9 +307,13 @@ def partition_data(dataset, datadir, logdir, partition, n_parties, beta=0.4):
         if dataset in ('celeba', 'covtype', 'a9a', 'rcv1', 'SUSY'):
             K = 2
             # min_require_size = 100
+        if dataset == 'cifar100':
+            K = 100
+        elif dataset == 'tinyimagenet':
+            K = 200
 
         N = y_train.shape[0]
-        np.random.seed(2020)
+        #np.random.seed(2020)
         net_dataidx_map = {}
 
         while min_size < min_require_size:
@@ -428,7 +456,87 @@ def partition_data(dataset, datadir, logdir, partition, n_parties, beta=0.4):
         for i in range(n_parties):
             for j in batch_idxs[i]:
                 net_dataidx_map[i]=np.append(net_dataidx_map[i], np.arange(user[j], user[j+1]))
+                
+    elif partition == "transfer-from-femnist":
+        stat = np.load("femnist-dis.npy")
+        n_total = stat.shape[0]
+        chosen = np.random.permutation(n_total)[:n_parties]
+        stat = stat[chosen,:]
+        
+        if dataset in ('celeba', 'covtype', 'a9a', 'rcv1', 'SUSY'):
+            K = 2
+        else:
+            K = 10
+        
+        N = y_train.shape[0]
+        #np.random.seed(2020)
+        net_dataidx_map = {}
 
+        idx_batch = [[] for _ in range(n_parties)]
+        for k in range(K):
+            idx_k = np.where(y_train == k)[0]
+            np.random.shuffle(idx_k)
+            proportions = stat[:,k]
+            # logger.info("proportions2: ", proportions)
+            proportions = proportions / proportions.sum()
+            # logger.info("proportions3: ", proportions)
+            proportions = (np.cumsum(proportions) * len(idx_k)).astype(int)[:-1]
+            # logger.info("proportions4: ", proportions)
+            idx_batch = [idx_j + idx.tolist() for idx_j, idx in zip(idx_batch, np.split(idx_k, proportions))]
+  
+
+        for j in range(n_parties):
+            np.random.shuffle(idx_batch[j])
+            net_dataidx_map[j] = idx_batch[j]
+
+    elif partition == "transfer-from-criteo":
+        stat0 = np.load("criteo-dis.npy")
+        
+        n_total = stat0.shape[0]
+        flag=True
+        while (flag):
+            chosen = np.random.permutation(n_total)[:n_parties]
+            stat = stat0[chosen,:]
+            check = [0 for i in range(10)]
+            for ele in stat:
+                for j in range(10):
+                    if ele[j]>0:
+                        check[j]=1
+            flag=False
+            for i in range(10):
+                if check[i]==0:
+                    flag=True
+                    break
+                    
+        
+        if dataset in ('celeba', 'covtype', 'a9a', 'rcv1', 'SUSY'):
+            K = 2
+            stat[:,0]=np.sum(stat[:,:5],axis=1)
+            stat[:,1]=np.sum(stat[:,5:],axis=1)
+        else:
+            K = 10
+        
+        N = y_train.shape[0]
+        #np.random.seed(2020)
+        net_dataidx_map = {}
+
+        idx_batch = [[] for _ in range(n_parties)]
+        for k in range(K):
+            idx_k = np.where(y_train == k)[0]
+            np.random.shuffle(idx_k)
+            proportions = stat[:,k]
+            # logger.info("proportions2: ", proportions)
+            proportions = proportions / proportions.sum()
+            # logger.info("proportions3: ", proportions)
+            proportions = (np.cumsum(proportions) * len(idx_k)).astype(int)[:-1]
+            # logger.info("proportions4: ", proportions)
+            idx_batch = [idx_j + idx.tolist() for idx_j, idx in zip(idx_batch, np.split(idx_k, proportions))]
+  
+
+        for j in range(n_parties):
+            np.random.shuffle(idx_batch[j])
+            net_dataidx_map[j] = idx_batch[j]
+            
     traindata_cls_counts = record_net_data_stats(y_train, net_dataidx_map, logdir)
     return (X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts)
 
@@ -627,7 +735,7 @@ def compute_accuracy(model, dataloader, get_confusion_matrix=False, calc=False, 
     #    return correct/float(total), conf_matrix
 
     if calc:
-        return correct/float(total), outlier_prob / num, torch.log(max_prob), avg_max / avg_num
+        return correct/float(total), 1,1,1 #outlier_prob / num, torch.log(max_prob), avg_max / avg_num
     else:
         return correct/float(total)
 
@@ -673,7 +781,7 @@ class AddGaussianNoise(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_level=0, net_id=None, total=0):
-    if dataset in ('mnist', 'femnist', 'fmnist', 'cifar10', 'svhn', 'generated', 'covtype', 'a9a', 'rcv1', 'SUSY'):
+    if dataset in ('mnist', 'femnist', 'fmnist', 'cifar10', 'svhn', 'generated', 'covtype', 'a9a', 'rcv1', 'SUSY', 'cifar100', 'tinyimagenet'):
         if dataset == 'mnist':
             dl_obj = MNIST_truncated
 
@@ -731,6 +839,42 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_lev
             transform_test = transforms.Compose([
                 transforms.ToTensor(),
                 AddGaussianNoise(0., noise_level, net_id, total)])
+            
+        elif dataset == 'cifar100':
+            dl_obj = CIFAR100_truncated
+
+            normalize = transforms.Normalize(mean=[0.5070751592371323, 0.48654887331495095, 0.4409178433670343],
+                                             std=[0.2673342858792401, 0.2564384629170883, 0.27615047132568404])
+            # transform_train = transforms.Compose([
+            #     transforms.RandomCrop(32),
+            #     transforms.RandomHorizontalFlip(),
+            #     transforms.ToTensor(),
+            #     normalize
+            # ])
+            transform_train = transforms.Compose([
+                # transforms.ToPILImage(),
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomRotation(15),
+                transforms.ToTensor(),
+                normalize
+            ])
+            # data prep for test set
+            transform_test = transforms.Compose([
+                transforms.ToTensor(),
+                normalize])
+        elif dataset == 'tinyimagenet':
+            dl_obj = ImageFolder_custom
+            transform_train = transforms.Compose([
+                transforms.Resize(32), 
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ])
+            transform_test = transforms.Compose([
+                transforms.Resize(32), 
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ])
 
         else:
             dl_obj = Generated
@@ -738,8 +882,12 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_lev
             transform_test = None
 
 
-        train_ds = dl_obj(datadir, dataidxs=dataidxs, train=True, transform=transform_train, download=True)
-        test_ds = dl_obj(datadir, train=False, transform=transform_test, download=True)
+        if dataset == "tinyimagenet":
+            train_ds = dl_obj(datadir+'./train/', dataidxs=dataidxs, transform=transform_train)
+            test_ds = dl_obj(datadir+'./val/', transform=transform_test)
+        else:
+            train_ds = dl_obj(datadir, dataidxs=dataidxs, train=True, transform=transform_train, download=True)
+            test_ds = dl_obj(datadir, train=False, transform=transform_test, download=True)
 
         train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, shuffle=True, drop_last=False)
         test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False, drop_last=False)
