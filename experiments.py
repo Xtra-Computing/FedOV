@@ -425,7 +425,7 @@ def shuffle(x):
     t = torch.Tensor(t)
     return t
 
-def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, args_optimizer, sz, device="cpu"):
+def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, args_optimizer, sz, num_class=10, device="cpu"):
     logger.info('Training network %s' % str(net_id))
     
     if type(train_dataloader) == type([1]):
@@ -519,7 +519,7 @@ def train_net_vote(net_id, net, train_dataloader, test_dataloader, epochs, lr, a
                 #half = int(x_gen.shape[2] / 2)
                 #x_gen[:,:,:,:half] = x_gen[:,:,:,half:]
                 #x_gen = torch.Tensor(x_gen).to(device)
-                y_gen = np.ones(x.shape[0]) * 10
+                y_gen = np.ones(x.shape[0]) * num_class
                 y_gen = torch.LongTensor(y_gen).to(device)
                 '''
                 x_gen2 = copy.deepcopy(x.cpu().numpy())
@@ -727,8 +727,14 @@ def local_train_net_vote(nets, selected, args, net_dataidx_map, test_dl = None, 
             sz = 28
         else:
             sz = 32
-
-        threshold, max_prob, avg_max = train_net_vote(net_id, net, train_dl_local, test_dl, n_epoch, args.lr, args.optimizer, sz, device=device)
+        
+        num_class = 10
+        if args.dataset == 'cifar100':
+            num_class = 100
+        elif args.dataset == 'tinyimagenet':
+            num_class = 200
+        
+        threshold, max_prob, avg_max = train_net_vote(net_id, net, train_dl_local, test_dl, n_epoch, args.lr, args.optimizer, sz, num_class=num_class, device=device)
         threshold_list.append([float(threshold), float(max_prob), float(avg_max)])
        
     return threshold_list
