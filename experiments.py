@@ -311,7 +311,12 @@ def init_nets(net_configs, dropout_p, n_parties, args):
             elif args.dataset == 'celeba':
                 net = ModerateCNN(output_dim=2)
         elif args.model == "resnet":
-            net = ResNet50_cifar10()
+            if args.dataset == "cifar100":
+                net = ResNet50_cifar10(num_classes=101)
+            elif args.dataset == "tinyimagenet":
+                net = ResNet50_cifar10(num_classes=201)
+            else:
+                net = ResNet50_cifar10(num_classes=11)
         elif args.model == "vgg16":
             net = vgg16()
         else:
