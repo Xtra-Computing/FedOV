@@ -2,7 +2,7 @@ import torch.utils.data as data
 import torch
 from PIL import Image
 import numpy as np
-from torchvision.datasets import MNIST, CIFAR10, SVHN, FashionMNIST
+from torchvision.datasets import MNIST, CIFAR10, SVHN, FashionMNIST, CIFAR100, ImageFolder, DatasetFolder, utils
 from torchvision.datasets.vision import VisionDataset
 from torchvision.datasets.utils import download_file_from_google_drive, check_integrity
 from functools import partial
@@ -10,6 +10,7 @@ from typing import Optional, Callable
 from torch.utils.model_zoo import tqdm
 import PIL
 import tarfile
+import torchvision
 
 import os
 import os.path
@@ -93,7 +94,6 @@ class MNIST_truncated(data.Dataset):
         """
         Args:
             index (int): Index
-
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
@@ -154,7 +154,6 @@ class FashionMNIST_truncated(data.Dataset):
         """
         Args:
             index (int): Index
-
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
@@ -226,7 +225,6 @@ class SVHN_custom(data.Dataset):
         """
         Args:
             index (int): Index
-
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
@@ -252,7 +250,6 @@ class SVHN_custom(data.Dataset):
 # torchvision CelebA
 class CelebA_custom(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
-
     Args:
         root (string): Root directory where images are downloaded to.
         split (string): One of {'train', 'valid', 'test', 'all'}.
@@ -464,7 +461,6 @@ class CIFAR10_truncated(data.Dataset):
         """
         Args:
             index (int): Index
-
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
@@ -717,3 +713,94 @@ class genData(MNIST):
         return data, target
     def __len__(self):
         return len(self.data)
+
+class CIFAR100_truncated(data.Dataset):
+
+    def __init__(self, root, dataidxs=None, train=True, transform=None, target_transform=None, download=False):
+
+        self.root = root
+        self.dataidxs = dataidxs
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.download = download
+
+        self.data, self.target = self.__build_truncated_dataset__()
+
+    def __build_truncated_dataset__(self):
+
+        cifar_dataobj = CIFAR100(self.root, self.train, self.transform, self.target_transform, self.download)
+
+        if torchvision.__version__ == '0.2.1':
+            if self.train:
+                data, target = cifar_dataobj.train_data, np.array(cifar_dataobj.train_labels)
+            else:
+                data, target = cifar_dataobj.test_data, np.array(cifar_dataobj.test_labels)
+        else:
+            data = cifar_dataobj.data
+            target = np.array(cifar_dataobj.targets)
+
+        if self.dataidxs is not None:
+            data = data[self.dataidxs]
+            target = target[self.dataidxs]
+
+        return data, target
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.target[index]
+        img = Image.fromarray(img)
+        # print("cifar10 img:", img)
+        # print("cifar10 target:", target)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+
+
+
+class ImageFolder_custom(DatasetFolder):
+    def __init__(self, root, dataidxs=None, train=True, transform=None, target_transform=None, download=None):
+        self.root = root
+        self.dataidxs = dataidxs
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+
+        imagefolder_obj = ImageFolder(self.root, self.transform, self.target_transform)
+        self.loader = imagefolder_obj.loader
+        if self.dataidxs is not None:
+            self.samples = np.array(imagefolder_obj.samples)[self.dataidxs]
+        else:
+            self.samples = np.array(imagefolder_obj.samples)
+
+    def __getitem__(self, index):
+        path = self.samples[index][0]
+        target = self.samples[index][1]
+        target = int(target)
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return sample, target
+
+    def __len__(self):
+        if self.dataidxs is None:
+            return len(self.samples)
+        else:
+            return len(self.dataidxs)
