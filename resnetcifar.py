@@ -316,9 +316,10 @@ class ResNetCifar10(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        tmp = x
         x = self.fc(x)
 
-        return x
+        return x, tmp
 
     def forward(self, x):
         return self._forward_impl(x)
