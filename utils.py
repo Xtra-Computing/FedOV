@@ -702,10 +702,7 @@ def compute_accuracy(model, dataloader, get_confusion_matrix=False, calc=False, 
                         
                 _, pred_label = torch.max(out.data, 1)
 
-                if batch_idx == 0:
-                    logger.info(out.data)
-                    logger.info(target)
-
+                
                 total += x.data.size()[0]
                 correct += (pred_label == target.data).sum().item()
 
