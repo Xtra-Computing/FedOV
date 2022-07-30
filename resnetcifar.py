@@ -261,6 +261,7 @@ class ResNetCifar10(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.later_layers = self.fc
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -321,7 +322,7 @@ class ResNetCifar10(nn.Module):
 
         return x, tmp
 
-    def forward(self, x):
+    def forward(self, x, _eval=False):
         return self._forward_impl(x)
 
 
