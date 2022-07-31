@@ -786,6 +786,9 @@ class ImageFolder_custom(DatasetFolder):
             self.samples = np.array(imagefolder_obj.samples)[self.dataidxs]
         else:
             self.samples = np.array(imagefolder_obj.samples)
+            
+        np.random.seed(0)
+        np.random.shuffle(self.samples) # for testing, otherwise the half distillation dataset contains only the first half labels
 
     def __getitem__(self, index):
         path = self.samples[index][0]
