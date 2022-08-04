@@ -28,3 +28,10 @@ Adversarial attacks: directly use https://github.com/utkuozbulak/pytorch-cnn-adv
 Cutpaste: use an unofficial reproduction from https://github.com/Runinho/pytorch-cutpaste. The authors of Cutpaste do not make code public.
 
 Also include code from https://github.com/lwneal/counterfactual-open-set which is the code by authors of Open Set Learning with Counterfactal Images, ECCV 2018. However, since our FL partition settings are more diverse and complicated, we find it very hard to tune the hyper-parameters to generate counterfactual inmages, so we do not call it in the final version. 
+
+For ResNet-50 experiments, since ResNet-50 has batch normalization layers, we have to mix train data and generated outliers in a batch, otherwise the model will become very bad. Codes are like the following
+```
+x_con = torch.cat([x,x_gen11],dim=0)
+y_con = torch.cat([target,y_gen],dim=0)
+loss = criterion(out, y_con)
+```
