@@ -134,11 +134,11 @@ class SimpleCNN(nn.Module):
         self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1], output_dim)
 
-        self.later_layers = nn.Sequential(
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
-            nn.Linear(hidden_dims[1], output_dim)
-        )
-
+    def later_layers(self, x):
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+    
     def forward(self, x, x_gen=None, calc=False, _eval=False):
         if calc:
             x = self.pool(F.relu(self.conv1(x)))
@@ -211,10 +211,10 @@ class SimpleCNNMNIST(nn.Module):
         self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
         self.fc3 = nn.Linear(hidden_dims[1], output_dim)
 
-        self.later_layers = nn.Sequential(
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
-            nn.Linear(hidden_dims[1], output_dim)
-        )
+    def later_layers(self, x):
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
     def forward(self, x, x_gen=None, calc=False, _eval=False):
         if calc:
