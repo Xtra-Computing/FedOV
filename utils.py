@@ -1147,7 +1147,7 @@ def compute_accuracy_vote_soft(model_list, threshold_list, dataloader, accepted_
         #logger.info(batch_idx)
         model.to('cpu')
 
-    pred_labels_list = np.array([[0 for i in range(out_total[0].shape[1]-1)]])
+    pred_labels_list = np.array([[0 for i in range(out_total[0][0].shape[1]-1)]])
 
     correct, total = 0, 0
     with torch.no_grad():
