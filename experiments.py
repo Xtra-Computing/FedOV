@@ -837,7 +837,7 @@ if __name__ == '__main__':
             
             logger.info("Not Normalize")
             for accepted_vote in range(1, 11):
-                test_acc, half, pred_labels_list = compute_accuracy_vote(model_list, threshold_list, test_dl_global, accepted_vote, normalize = False, factor=factor,device=device)
+                test_acc, half, pred_labels_list = compute_accuracy_vote_soft(model_list, threshold_list, test_dl_global, accepted_vote, normalize = False, factor=factor,device=device)
                 logger.info("Max {} vote: test acc = {}".format(accepted_vote, test_acc))
             #logger.info(half)
             #logger.info(pred_labels_list.shape)
@@ -845,6 +845,8 @@ if __name__ == '__main__':
 
         stu_nets = init_nets(args.net_config, args.dropout_p, 1, args)
         stu_model = stu_nets[0][0]
-        distill(stu_model, pred_labels_list, test_dl_global, half, args=args, device=device)
-        # Can use compute_accuracy_vote_soft and distill_soft for soft label distillation like FedDF. This is generally better, especially for complicated datasets like CIFAR-100.
+        distill_soft(stu_model, pred_labels_list, test_dl_global, half, args=args, device=device)
+        # compute_accuracy_vote_soft() and distill_soft() for soft label distillation like FedDF. 
+        # compute_accuracy_vote() and distill() are hard label distillation.
+        # Soft label is usually better, especially for complicated datasets like CIFAR-10, CIFAR-100.
             
