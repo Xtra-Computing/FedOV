@@ -1122,3 +1122,151 @@ def distill(model, first_half_labels, dataloader, half, args, device="cpu"):
                 true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
 
     logger.info(correct/float(total))
+    
+    
+def compute_accuracy_vote_soft(model_list, threshold_list, dataloader, accepted_vote, normalize = True, factor=1, mode=1, device="cpu"):
+    for model in model_list:
+        model.eval()
+        #model.to(device)
+
+    true_labels_list, pred_labels_list = np.array([]), np.array([[0 for i in range(10)]])
+
+    if type(dataloader) == type([1]):
+        pass
+    else:
+        dataloader = [dataloader]
+
+    out_total = [[] for i in range(1000)]
+    for model in model_list:
+        model.to(device)
+        with torch.no_grad():
+            for tmp in dataloader:
+                for batch_idx, (x, target) in enumerate(tmp):
+                    x=x.to(device)
+                    out_total[batch_idx].append(model(x)[0].cpu())
+        #logger.info(batch_idx)
+        model.to('cpu')
+
+    pred_labels_list = np.array([[0 for i in range(out_total[0].shape[1]-1)]])
+
+    correct, total = 0, 0
+    with torch.no_grad():
+        for tmp in dataloader:
+            for batch_idx, (x, target) in enumerate(tmp):
+                x, target = x.to(device), target.to(device,dtype=torch.int64)
+                out = out_total[batch_idx]
+                #out = [model(x)[0].cpu() for model in model_list]
+                for i in range(len(out)):
+                    #out_del = out[i].numpy()
+                    #out_max = np.repeat(np.max(out_del[:,:-1], axis=1), out_del.shape[1]).reshape(-1, out_del.shape[1])
+                    #out_del = np.where(out_del > out_max - 1e-5 ,-10000, out_del)
+                    #out_del = torch.softmax(torch.Tensor(out_del), dim=1).numpy()
+                    
+                    #confidence = out_del[:,-1]
+                    out[i] = torch.softmax(out[i][:,:], dim=1).numpy()
+                    #saved = torch.softmax(out[i][:,:-1], dim=1).numpy()
+                    #out[i] = out[i] / len(model_list)
+
+                    #out[i][:,:-1] = saved # new added, just calculate existing class
+
+                    out[i] = out[i].tolist()
+                pred_label = []
+                prob_list = []
+                for ind in range(len(out[0])):
+                    vote = [result[ind] for result in out]
+                    vote = np.array(vote)
+                    index = np.argsort(vote[:,-1])
+                    sorted_vote = vote[index]
+                    final_vote = np.sum(sorted_vote[:, :-1], axis=0)
+                    #probob = torch.softmax(torch.Tensor(final_vote), dim=0).tolist()
+
+                    probob = (final_vote / np.sum(final_vote)).tolist()
+
+                    prob_list.append(probob)
+                    pred = int(np.argmax(final_vote))
+                    pred_label.append(pred)
+                    '''
+                    if batch_idx == 0:
+                        logger.info(target[ind])
+                        logger.info(pred)
+                        logger.info(sorted_vote)
+                    '''
+                pred_label = torch.LongTensor(pred_label).to(device)
+                prob_list = torch.Tensor(prob_list).to(device)
+
+
+                total += x.data.size()[0]
+                correct += (pred_label == target.data).sum().item()
+
+                if device == "cpu":
+                    pred_labels_list = np.append(pred_labels_list, prob_list.numpy(), axis=0)
+                    true_labels_list = np.append(true_labels_list, target.data.numpy())
+                else:
+                    pred_labels_list = np.append(pred_labels_list, prob_list.cpu().numpy(), axis=0)
+                    true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+
+            half = int(batch_idx / 2)
+
+    return correct/float(total), half, pred_labels_list[1:]
+
+def distill_soft(model, first_half_labels, dataloader, half, args, device="cpu"):
+    model.to(device)
+
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.reg)
+    criterion = nn.KLDivLoss().to(device)
+
+    for epoch in range(100):
+        epoch_loss_collector = []
+
+        for batch_idx, (x, target) in enumerate(dataloader):
+            if batch_idx >= half:
+                break
+            bs = target.shape[0]
+            target = torch.Tensor(first_half_labels[bs*batch_idx:bs*(batch_idx+1)])
+            x, target = x.to(device), target.to(device)
+            
+            optimizer.zero_grad()
+            x.requires_grad = True
+            target.requires_grad = False
+            #target = target.long()
+
+            out, mid = model(x) 
+            out = torch.nn.LogSoftmax(dim=1)(out[:,:-1])
+
+            loss = criterion(out, target) 
+            
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss_collector.append(loss.item())
+
+        epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
+
+        logger.info('Epoch: %d Loss: %f' % (epoch, epoch_loss))
+
+
+    true_labels_list, pred_labels_list = np.array([]), np.array([])
+
+    correct, total = 0, 0
+    with torch.no_grad():
+        for batch_idx, (x, target) in enumerate(dataloader):
+            if batch_idx < half:
+                continue
+            x, target = x.to(device), target.to(device,dtype=torch.int64)
+            out, mid = model(x)
+                
+            prob = torch.softmax(out[:,:-1], dim=1)
+                    
+            _, pred_label = torch.max(out.data, 1)
+
+            total += x.data.size()[0]
+            correct += (pred_label == target.data).sum().item()
+
+            if device == "cpu":
+                pred_labels_list = np.append(pred_labels_list, pred_label.numpy())
+                true_labels_list = np.append(true_labels_list, target.data.numpy())
+            else:
+                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+
+    logger.info(correct/float(total))
