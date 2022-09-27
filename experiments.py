@@ -846,4 +846,5 @@ if __name__ == '__main__':
         stu_nets = init_nets(args.net_config, args.dropout_p, 1, args)
         stu_model = stu_nets[0][0]
         distill(stu_model, pred_labels_list, test_dl_global, half, args=args, device=device)
+        # Can use compute_accuracy_vote_soft and distill_soft for soft label distillation like FedDF. This is generally better, especially for complicated datasets like CIFAR-100.
             
