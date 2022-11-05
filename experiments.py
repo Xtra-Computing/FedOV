@@ -774,6 +774,7 @@ if __name__ == '__main__':
 
     seed = args.init_seed
     logger.info("#" * 100)
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     logger.info("Partitioning data")
