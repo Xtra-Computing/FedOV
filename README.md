@@ -23,7 +23,7 @@ An example running script of FedOV is in `run.sh`.
 
 Some repos we refer to
 
-General framework: https://github.com/Xtra-Computing/NIID-Bench (for baseline algorithms like FedAvg, FedProx, SCAFFOLD and FedNova, please use this framework)
+General framework (for baseline algorithms like FedAvg, FedProx, SCAFFOLD and FedNova, please use this framework): https://github.com/Xtra-Computing/NIID-Bench
 
 Adversarial attacks: directly use https://github.com/utkuozbulak/pytorch-cnn-adversarial-attacks
 
