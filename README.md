@@ -29,9 +29,13 @@ Cutpaste: use an unofficial reproduction from https://github.com/Runinho/pytorch
 
 Also include code from https://github.com/lwneal/counterfactual-open-set which is the code by authors of Open Set Learning with Counterfactal Images, ECCV 2018. However, since our FL partition settings are more diverse and complicated, we find it very hard to tune the hyper-parameters to generate good counterfactual images and the voting accuracy is low, so we do not call it in the final version. 
 
+In our code, we keep the commented or unused codes (functions). We tried these but did not get good results. After many trails and errors, we summarize the current DD and AOE functions. These trials may save efforts or bring some insights for future researchers, so we keep them. 
+
 For ResNet-50 experiments, since ResNet-50 has batch normalization layers, we have to mix train data and generated outliers in a batch, otherwise the model will become very bad. Codes are like the following
 ```
 x_con = torch.cat([x,x_gen11],dim=0)
 y_con = torch.cat([target,y_gen],dim=0)
 loss = criterion(out, y_con)
 ```
+
+If you find our work useful, please cite
