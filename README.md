@@ -1,6 +1,6 @@
 # FedOV
 
-This is source code for paper One-Shot Federated Learning by Open-Set Voting. An example running script is in `run.sh`.
+This is source code for paper Towards Addressing Label Skews in One-shot Federated Learning. An example running script is in `run.sh`.
 
 | Parameter                      | Description                                 |
 | ----------------------------- | ---------------------------------------- |
