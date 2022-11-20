@@ -1,6 +1,8 @@
 # FedOV
 
-This is source code for paper Towards Addressing Label Skews in One-shot Federated Learning. An example running script is in `run.sh`.
+This is source code for paper Towards Addressing Label Skews in One-shot Federated Learning. 
+
+An example running script of FedOV is in `run.sh`. 
 
 | Parameter                      | Description                                 |
 | ----------------------------- | ---------------------------------------- |
@@ -21,7 +23,7 @@ This is source code for paper Towards Addressing Label Skews in One-shot Federat
 
 Some repos we refer to
 
-General framework: https://github.com/Xtra-Computing/NIID-Bench
+General framework: https://github.com/Xtra-Computing/NIID-Bench (for baseline algorithms like FedAvg, FedProx, SCAFFOLD and FedNova, please use this framework)
 
 Adversarial attacks: directly use https://github.com/utkuozbulak/pytorch-cnn-adversarial-attacks
 
