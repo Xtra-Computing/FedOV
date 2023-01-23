@@ -1,6 +1,6 @@
 # FedOV
 
-This is source code for paper Towards Addressing Label Skews in One-shot Federated Learning. 
+This is source code for paper [Towards Addressing Label Skews in One-Shot Federated Learning](https://openreview.net/pdf?id=rzrqh85f4Sc). 
 
 An example running script of FedOV is in `run.sh`. 
 
