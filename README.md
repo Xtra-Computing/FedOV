@@ -41,3 +41,13 @@ loss = criterion(out, y_con)
 ```
 
 If you find our work useful, please cite
+```
+@inproceedings{
+diao2023towards,
+title={Towards Addressing Label Skews in One-Shot Federated Learning},
+author={Yiqun Diao and Qinbin Li and Bingsheng He},
+booktitle={International Conference on Learning Representations},
+year={2023},
+url={https://openreview.net/forum?id=rzrqh85f4Sc}
+}
+```
