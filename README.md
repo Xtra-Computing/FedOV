@@ -13,7 +13,7 @@ An example running script of FedOV is in `run.sh`.
 | `batch-size` | Batch size, default = `64`. |
 | `epochs` | Number of local training epochs, default = `5`. |
 | `n_parties` | Number of parties, default = `2`. |
-| `mu` | The proximal term parameter for FedProx, default = `1`. |
+| `comm_round` | Should be `1` for one-shot FL. |
 | `partition`    | The partition way. Options: `homo`, `noniid-labeldir`, `noniid-#label1` (or 2, 3, ..., which means the fixed number of labels each party owns)|
 | `beta` | The concentration parameter of the Dirichlet distribution for heterogeneous partition, default = `0.5`. |
 | `device` | Specify the device to run the program, default = `cuda:0`. |
