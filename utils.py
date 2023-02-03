@@ -1177,7 +1177,7 @@ def compute_accuracy_vote_soft(model_list, threshold_list, dataloader, accepted_
                     vote = np.array(vote)
                     index = np.argsort(vote[:,-1])
                     sorted_vote = vote[index]
-                    final_vote = np.sum(sorted_vote[:, :-1], axis=0)
+                    final_vote = np.sum(sorted_vote[:accepted_vote, :-1], axis=0)
                     #probob = torch.softmax(torch.Tensor(final_vote), dim=0).tolist()
 
                     probob = (final_vote / np.sum(final_vote)).tolist()
