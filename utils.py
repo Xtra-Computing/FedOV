@@ -7,7 +7,7 @@ import torch.utils.data as data
 from torch.autograd import Variable
 import torch.nn.functional as F
 import random
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_auc_score
 from torch.utils.data import DataLoader
 import copy
 
