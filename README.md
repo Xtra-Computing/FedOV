@@ -33,7 +33,7 @@ Also include code from https://github.com/lwneal/counterfactual-open-set which i
 
 In our code, we keep the commented or unused codes (functions). We tried these but did not get good results. After many trails and errors, we summarize the current DD and AOE functions. These trials may save efforts or bring some insights for future researchers, so we keep them. 
 
-For ResNet-50 experiments, since ResNet-50 has batch normalization layers, we have to mix train data and generated outliers in a batch, otherwise the model will become very bad. Codes are like the following
+For ResNet-50 experiments, since ResNet-50 has batch normalization layers, we have to mix train data and generated outliers in a batch, otherwise the model will become very bad. Please see folder `resnet_code`. Codes are like the following
 ```
 x_con = torch.cat([x,x_gen11],dim=0)
 y_con = torch.cat([target,y_gen],dim=0)
