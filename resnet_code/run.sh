@@ -1,0 +1,15 @@
+python experiments.py --model=resnet \
+	--dataset=cifar100 \
+	--alg=vote \
+	--lr=0.001 \
+	--batch-size=64 \
+	--epochs=100 \
+	--n_parties=10 \
+	--rho=0.9 \
+	--comm_round=1 \
+	--partition=noniid-labeldir \
+	--beta=0.5\
+	--device='cuda:0'\
+	--datadir='./data/' \
+	--logdir='./logs/' \
+	--init_seed=0
